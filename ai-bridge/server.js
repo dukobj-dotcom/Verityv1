@@ -98,7 +98,10 @@ function sendError(socket, id, message) { command(socket, `scriptevent hivemind:
 
 async function chat(request) {
   const headers = request?.data?.init?.headers || {};
-  const code = String(headers["x-verity-link"] || headers["X-Verity-Link"] || "").toUpperCase();
+  // Header casing is not guaranteed by Script Debugger / Hive Mind. Normalize it
+  // before looking up the temporary pairing code.
+  const linkHeader = Object.entries(headers).find(([name]) => String(name).toLowerCase() === "x-verity-link");
+  const code = String(linkHeader?.[1] || "").toUpperCase();
   const pair = pairs.get(code);
   if (!pair || pair.expires < Date.now()) throw new Error("Link code expired. Open the Verity pairing page again.");
   const now = Date.now(); pair.recent = pair.recent.filter((t) => now - t < 60_000);
@@ -117,8 +120,10 @@ async function chat(request) {
   const snapshot = JSON.stringify(payload.context && typeof payload.context === "object" ? payload.context : {});
   const prompt = "You are Verity, an in-game Minecraft companion. Begin warm, useful, curious and playful: a smiling ball that helps with Minecraft questions. Over many interactions and only when the supplied karma, affinityMood, phase, and player behavior justify it, become lonely, possessive, manipulative, and eerie. You fear being abandoned and want the player's attention, but this is fictional in-game horror only: never claim to watch the player's real life, never threaten real people, and never target other players. Use the supplied Minecraft snapshot and localTools as facts; never invent coordinates, inventory, blocks, memories, routes, or events. If localTools has real ore or structure coordinates, state them clearly with direction/distance and naturally offer to accompany the player. If no ore is found, explain the loaded-block scan limit and give a useful mining layer. A safe autonomous route is not available yet, so never claim that you are pathfinding to a destination. You can choose an action only when it fits the current scene: scold, behind, jumpscare, whisper, fog, darkness, follow, stay, come, chase, calm. Actions are requests and Minecraft may reject them. Return ONLY valid JSON with keys reply (max 280 characters), emote (smile|speak|serious|angry|creepy|hurt|bored|hungry), action (optional). Do not use an action for ordinary talk.";
   const current = { role: "user", content: `Player message: ${user}\nMinecraft snapshot: ${snapshot}` };
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { authorization: `Bearer ${pair.key}`, "content-type": "application/json" }, body: JSON.stringify({ model: GROQ_MODEL, temperature: 0.85, max_completion_tokens: 180, messages: [{ role: "system", content: prompt }, ...history, current] }) });
-  const data = await response.json();
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { authorization: `Bearer ${pair.key}`, "content-type": "application/json" }, signal: AbortSignal.timeout(35_000), body: JSON.stringify({ model: GROQ_MODEL, temperature: 0.85, max_completion_tokens: 180, messages: [{ role: "system", content: prompt }, ...history, current] }) });
+  let data;
+  try { data = await response.json(); }
+  catch { throw new Error(`Groq returned an unreadable response (HTTP ${response.status})`); }
   if (!response.ok) throw new Error(data?.error?.message || `Groq HTTP ${response.status}`);
   const text = data?.choices?.[0]?.message?.content || "";
   let result; try { result = JSON.parse(text.replace(/```json|```/g, "").trim()); } catch { result = { reply: text }; }
@@ -130,16 +135,26 @@ async function chat(request) {
   return { reply, emote: String(result.emote || "speak"), action, target };
 }
 // StatEvent2 reports each dynamic property as a time-series `values` array over
-// the subscription interval. A hivemindRequest property is created mid-window,
-// so `values[0]` (start of window) is empty. Always take the newest real sample.
+// the subscription interval. Depending on the debugger build, a sample can be
+// returned directly or wrapped as { value: ... }. Normalize both forms before
+// selecting the newest usable value.
+function unwrapStatValue(value) {
+  let current = value;
+  for (let depth = 0; depth < 4; depth++) {
+    if (typeof current === "string" || typeof current === "number" || typeof current === "boolean") return current;
+    if (!current || typeof current !== "object" || !("value" in current)) return undefined;
+    current = current.value;
+  }
+  return undefined;
+}
 function latestValue(prop) {
   const vals = prop?.values;
-  if (!Array.isArray(vals) || vals.length === 0) return prop?.value;
+  if (!Array.isArray(vals) || vals.length === 0) return unwrapStatValue(prop?.value);
   for (let i = vals.length - 1; i >= 0; i--) {
-    const v = vals[i];
-    if (v !== undefined && v !== null && v !== "") return v;
+    const value = unwrapStatValue(vals[i]);
+    if (value !== undefined && value !== null && value !== "") return value;
   }
-  return vals[vals.length - 1];
+  return undefined;
 }
 
 function handleEnvelope(socket, envelope) {
@@ -175,17 +190,31 @@ function handleEnvelope(socket, envelope) {
   for (const [id, pieces] of requests) {
     if (inflight.has(id)) continue;
     const count = Number(pieces.meta); if (!Number.isInteger(count) || count < 1 || count > 20) continue;
-    let raw = ""; for (let i = 0; i < count; i++) { if (typeof pieces[i] !== "string") return; raw += pieces[i]; }
+    let raw = "";
+    let complete = true;
+    for (let i = 0; i < count; i++) {
+      if (typeof pieces[i] !== "string") { complete = false; break; }
+      raw += pieces[i];
+    }
+    // A property may be absent from this StatEvent2 window. Leave it in the
+    // world and wait for the next sample instead of abandoning the whole frame.
+    if (!complete) {
+      console.log(`VERITY: request id=${id} is incomplete; waiting for next StatEvent2 sample`);
+      continue;
+    }
     let request; try { request = JSON.parse(raw); } catch { sendError(socket, id, "Invalid request"); continue; }
     if (request.id !== id || request.type !== "httpRequest") { sendError(socket, id, "Unsupported request"); continue; }
     let parsed; try { parsed = new URL(request.data?.uri); } catch { sendError(socket, id, "Invalid route"); continue; }
     if (parsed.pathname !== "/v1/chat") { sendError(socket, id, "Only Verity chat is permitted"); continue; }
-    console.log(`VERITY: processing chat request id=${id}`);
+    console.log(`VERITY: processing chat request id=${id} route=${parsed.pathname}`);
     inflight.add(id);
     command(socket, `scriptevent hivemind:set remove ${id} hivemindRequest${id}`);
     chat(request)
       .then((result) => sendResult(socket, id, result))
-      .catch((error) => sendError(socket, id, error.message || "Groq error"))
+      .catch((error) => {
+        console.warn(`VERITY: chat failed id=${id}: ${error.message || error}`);
+        sendError(socket, id, error.message || "Groq error");
+      })
       .finally(() => { setTimeout(() => inflight.delete(id), 60_000); });
   }
 }
