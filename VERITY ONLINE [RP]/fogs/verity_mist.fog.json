@@ -1,0 +1,10 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:fog_settings": {
+    "description": { "identifier": "pntmc:verity_mist" },
+    "distance": {
+      "air": { "fog_start": 32.0, "fog_end": 118.0, "fog_color": "#d9dde0", "render_distance_type": "fixed" },
+      "weather": { "fog_start": 22.0, "fog_end": 82.0, "fog_color": "#e1e4e6", "render_distance_type": "fixed" }
+    }
+  }
+}
