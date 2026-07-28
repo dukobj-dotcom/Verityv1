@@ -1,0 +1,22 @@
+{
+	"format_version": "1.16.100",
+	"minecraft:fog_settings": {
+		"description": {
+			"identifier": "pntmc:verity_dread"
+		},
+		"distance": {
+			"air": {
+				"fog_start": 1.5,
+				"fog_end": 11.0,
+				"fog_color": "#080808",
+				"render_distance_type": "fixed"
+			},
+			"weather": {
+				"fog_start": 1.5,
+				"fog_end": 10.0,
+				"fog_color": "#080808",
+				"render_distance_type": "fixed"
+			}
+		}
+	}
+}
