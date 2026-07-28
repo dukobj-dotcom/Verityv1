@@ -1,0 +1,574 @@
+{
+	"format_version": "1.14.0",
+	"sound_definitions": {
+		"pntmc.verity.askme": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/askme"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.whosthere": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/whosthere"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.punchcardboardbox": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/punchcardboardbox"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.opening": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/opening"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.hello": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/hello"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.somethingiscomingin3days": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/somethingiscomingin3days"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 48
+		},
+		"pntmc.verity.somethingiscoming": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/somethingiscomingin3days"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 48
+		},
+		"pntmc.verity.chase": {
+			"category": "music",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/chase"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.spotted": {
+			"category": "music",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/spotted"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.spotted_bonecrack": {
+			"category": "music",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/spottedbonecrack"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.mygal_forest": {
+			"category": "music",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/mygal_forest"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.mygal_normal": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/mygal_normal"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.matrixsong": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/matrixsong",
+					"stream": true
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.no": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/no1"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.no2": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/no2"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.loudmusic": {
+			"category": "music",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/loudmusic"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.loudsound": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/loudmusic"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.yes_south": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/yes_south"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.villagers_gone": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/villagers_gone"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.gone": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/gone"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.something_passed": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/something_passed"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.something_hungry": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/something_hungry"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.im_smiling_now": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/im_smiling_now"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.always_looked_like_this": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/always_looked_like_this"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.its_already_over": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/its_already_over"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 48
+		},
+		"pntmc.verity.you_are_mine": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/you_are_mine"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 48
+		},
+		"pntmc.verity.know_everything": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/know_everything"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.mobbbbb": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/mobbbbb"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.jumpscare": {
+			"category": "music",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/jumpscare"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 64
+		},
+		"pntmc.verity.saludo_inicio": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/saludo_inicio"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_espero": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_espero"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_te_sigo": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_te_sigo"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_coords": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_coords"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_bioma": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_bioma"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_hora": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_hora"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_estructura": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_estructura"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_no_encontre": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_no_encontre"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_direccion": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_direccion"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_mineral": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_mineral"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.voz_mineral_escaneo": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_mineral_escaneo"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.voz_como_estas": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_como_estas"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 24
+		},
+		"pntmc.verity.scold_huir": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/scold_huir"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.scold_quien": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/scold_quien"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.scold_idiota": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/scold_idiota"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.scold_asco": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/scold_asco"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.scold_intenta": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/scold_intenta"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.scold_patetico": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/scold_patetico"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.scold_cobarde": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/scold_cobarde"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.scold_miedo": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/scold_miedo"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.voz_estructura_no": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_estructura_no"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.voz_ore_rec": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_ore_rec"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.voz_ey_inicio": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_ey_inicio"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.voz_estoy_bien_fase": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_estoy_bien_fase"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.voz_algo_viene": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_algo_viene"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.voz_se_acabo_aventura": {
+			"category": "neutral",
+			"sounds": [
+				{
+					"name": "sounds/pntmcverity/voz_se_acabo_aventura"
+				}
+			],
+			"min_distance": 1,
+			"max_distance": 32
+		},
+		"pntmc.verity.vo_hurt_1": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_hurt_1", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_mood_friendly_1": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_mood_friendly_1", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_mood_neutral_1": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_mood_neutral_1", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_mood_annoyed_1": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_mood_annoyed_1", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_mood_hostile_1": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_mood_hostile_1", "stream": true }], "min_distance": 1, "max_distance": 32 },
+		"pntmc.verity.vo_saludo": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_saludo", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_pregunta_1": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_pregunta_1", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_pregunta_2": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_pregunta_2", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_pregunta_3": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_pregunta_3", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_pregunta_4": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_pregunta_4", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_gracias": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_gracias", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_maltrato": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_maltrato", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_pasto": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_pasto", "stream": true }], "min_distance": 1, "max_distance": 24 },
+		"pntmc.verity.vo_susurro": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_susurro", "stream": true }], "min_distance": 1, "max_distance": 32 },
+		"pntmc.verity.vo_final": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_final", "stream": true }], "min_distance": 1, "max_distance": 32 },
+		"pntmc.verity.vo_risa_demiedo": { "category": "neutral", "sounds": [{ "name": "sounds/pntmcverity/vo_risa_demiedo", "stream": true }], "min_distance": 1, "max_distance": 32 },
+		"pntmc.verity.ambient_humming": { "category": "ambient", "sounds": [{ "name": "sounds/pntmcverity/kunal_acharjee-humming-sound-268134", "stream": true }], "min_distance": 1, "max_distance": 48 },
+		"pntmc.verity.ambient_sinister": { "category": "ambient", "sounds": [{ "name": "sounds/pntmcverity/data_pion-2sfx2-zoom-in-sinister-535655", "stream": true }], "min_distance": 1, "max_distance": 40 }
+	}
+}
