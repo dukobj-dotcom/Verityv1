@@ -17,6 +17,9 @@ const HISTORY_DIR = process.env.HISTORY_DIR || "/data";
 const HISTORY_LIMIT = Math.max(8, Math.min(60, Number(process.env.HISTORY_LIMIT || 32)));
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const pairs = new Map();
+// Request ids already picked up this connection, so overlapping StatEvent2
+// samples (the removal takes a few ticks to apply) don't double-fire Groq.
+const inflight = new Set();
 
 function historyFile(pair, playerId) {
   const identity = crypto.createHash("sha256").update(`${pair.key}:${playerId}`).digest("hex");
@@ -57,7 +60,7 @@ function cleanPairs() {
 }
 setInterval(cleanPairs, 60_000).unref();
 
-const page = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VERITY ONLINE · Groq</title><style>body{margin:0;background:#101114;color:#eee;font:16px system-ui;display:grid;place-items:center;min-height:100vh}.card{width:min(430px,90vw);background:#1a1c20;border:1px solid #30333a;border-radius:18px;padding:26px;box-sizing:border-box}h1{margin:0 0 8px}p{color:#aeb3bc;line-height:1.45}input,button{box-sizing:border-box;width:100%;border-radius:10px;padding:12px;margin-top:10px;font:inherit}input{border:1px solid #444;background:#101114;color:white}button{border:0;background:#d9dce1;color:#121316;font-weight:700;cursor:pointer}.code{font:700 28px ui-monospace;text-align:center;letter-spacing:3px;color:#fff;margin:18px 0}.hidden{display:none}</style><main class="card"><h1>VERITY ONLINE</h1><p id="intro">Pega tu clave personal de Groq. Se conserva solo en memoria por 12 horas y nunca se mete al addon.</p><input id="key" type="password" placeholder="gsk_..." autocomplete="off"><button id="go">Vincular Groq</button><section id="done" class="hidden"><p>En el chat del mundo escribe:</p><div class="code" id="code"></div><p><b>!verity link CODIGO</b></p><p>Después conecta el mundo al puente con el comando que muestre la guía del addon.</p></section></main><script>go.onclick=async()=>{go.disabled=true;try{let r=await fetch('/v1/link',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:key.value})});let j=await r.json();if(!r.ok)throw Error(j.error);key.value='';code.textContent=j.code;done.classList.remove('hidden');intro.textContent='Clave vinculada correctamente.'}catch(e){alert(e.message)}finally{go.disabled=false}};</script></html>`;
+const page = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VERITY ONLINE Â· Groq</title><style>body{margin:0;background:#101114;color:#eee;font:16px system-ui;display:grid;place-items:center;min-height:100vh}.card{width:min(430px,90vw);background:#1a1c20;border:1px solid #30333a;border-radius:18px;padding:26px;box-sizing:border-box}h1{margin:0 0 8px}p{color:#aeb3bc;line-height:1.45}input,button{box-sizing:border-box;width:100%;border-radius:10px;padding:12px;margin-top:10px;font:inherit}input{border:1px solid #444;background:#101114;color:white}button{border:0;background:#d9dce1;color:#121316;font-weight:700;cursor:pointer}.code{font:700 28px ui-monospace;text-align:center;letter-spacing:3px;color:#fff;margin:18px 0}.hidden{display:none}</style><main class="card"><h1>VERITY ONLINE</h1><p id="intro">Pega tu clave personal de Groq. Se conserva solo en memoria por 12 horas y nunca se mete al addon.</p><input id="key" type="password" placeholder="gsk_..." autocomplete="off"><button id="go">Vincular Groq</button><section id="done" class="hidden"><p>En el chat del mundo escribe:</p><div class="code" id="code"></div><p><b>!verity link CODIGO</b></p><p>DespuÃ©s conecta el mundo al puente con el comando que muestre la guÃ­a del addon.</p></section></main><script>go.onclick=async()=>{go.disabled=true;try{let r=await fetch('/v1/link',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:key.value})});let j=await r.json();if(!r.ok)throw Error(j.error);key.value='';code.textContent=j.code;done.classList.remove('hidden');intro.textContent='Clave vinculada correctamente.'}catch(e){alert(e.message)}finally{go.disabled=false}};</script></html>`;
 
 const web = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" }); return res.end(); }
@@ -121,11 +124,24 @@ async function chat(request) {
   let result; try { result = JSON.parse(text.replace(/```json|```/g, "").trim()); } catch { result = { reply: text }; }
   const reply = String(result.reply || "...").slice(0, 280);
   await saveHistory(pair, playerId, [...history, { role: "user", content: user }, { role: "assistant", content: reply }]);
-  const requestedGuide = /\b(gui[aá]|gu[ií]ame|acomp[aá]ñame|lead me|guide me)\b/i.test(user);
+  const requestedGuide = /\b(gui[aÃ¡]|gu[iÃ­]ame|acomp[aÃ¡]Ã±ame|lead me|guide me)\b/i.test(user);
   const action = requestedGuide && pair.targets.get(playerId) ? "guide" : (result.action ? String(result.action) : undefined);
   const target = action === "guide" ? pair.targets.get(playerId) : undefined;
   return { reply, emote: String(result.emote || "speak"), action, target };
 }
+// StatEvent2 reports each dynamic property as a time-series `values` array over
+// the subscription interval. A hivemindRequest property is created mid-window,
+// so `values[0]` (start of window) is empty. Always take the newest real sample.
+function latestValue(prop) {
+  const vals = prop?.values;
+  if (!Array.isArray(vals) || vals.length === 0) return prop?.value;
+  for (let i = vals.length - 1; i >= 0; i--) {
+    const v = vals[i];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return vals[vals.length - 1];
+}
+
 function handleEnvelope(socket, envelope) {
   if (envelope?.type === "event" && envelope.event?.type === "ProtocolEvent") {
     const event = envelope.event;
@@ -135,7 +151,7 @@ function handleEnvelope(socket, envelope) {
     // Subscribe to dynamic_property_values so Minecraft sends StatEvent2 frames
     write(socket, { type: "subscribe", event: "StatEvent2", interval: 20 });
     command(socket, "scriptevent hivemind:purpose");
-    console.log("VERITY: handshake OK — subscribed to StatEvent2");
+    console.log("VERITY: handshake OK â€” subscribed to StatEvent2");
     return;
   }
   const stats = envelope?.event;
@@ -146,14 +162,18 @@ function handleEnvelope(socket, envelope) {
   if (envelope?.type !== "event" || stats?.type !== "StatEvent2") return;
   const group = stats.stats?.find((s) => s.name === "dynamic_property_values");
   const properties = group?.children || [];
-  if (properties.length > 0) console.log(`VERITY: ${properties.length} dynamic props received`);
+  if (properties.length > 0) {
+    // Diagnostic: dump the REAL property names so we can confirm hivemindRequest ever appears.
+    console.log(`VERITY: ${properties.length} dynamic props received -> ${JSON.stringify(properties.map((p) => p.name))}`);
+  }
   const requests = new Map();
   for (const prop of properties) {
     const match = /^hivemindRequest(.+)\|(meta|\d+)$/.exec(prop.name);
     if (!match) continue;
-    const item = requests.get(match[1]) || {}; item[match[2]] = prop.values?.[0]; requests.set(match[1], item);
+    const item = requests.get(match[1]) || {}; item[match[2]] = latestValue(prop); requests.set(match[1], item);
   }
   for (const [id, pieces] of requests) {
+    if (inflight.has(id)) continue;
     const count = Number(pieces.meta); if (!Number.isInteger(count) || count < 1 || count > 20) continue;
     let raw = ""; for (let i = 0; i < count; i++) { if (typeof pieces[i] !== "string") return; raw += pieces[i]; }
     let request; try { request = JSON.parse(raw); } catch { sendError(socket, id, "Invalid request"); continue; }
@@ -161,8 +181,12 @@ function handleEnvelope(socket, envelope) {
     let parsed; try { parsed = new URL(request.data?.uri); } catch { sendError(socket, id, "Invalid route"); continue; }
     if (parsed.pathname !== "/v1/chat") { sendError(socket, id, "Only Verity chat is permitted"); continue; }
     console.log(`VERITY: processing chat request id=${id}`);
+    inflight.add(id);
     command(socket, `scriptevent hivemind:set remove ${id} hivemindRequest${id}`);
-    chat(request).then((result) => sendResult(socket, id, result)).catch((error) => sendError(socket, id, error.message || "Groq error"));
+    chat(request)
+      .then((result) => sendResult(socket, id, result))
+      .catch((error) => sendError(socket, id, error.message || "Groq error"))
+      .finally(() => { setTimeout(() => inflight.delete(id), 60_000); });
   }
 }
 const tcp = net.createServer((socket) => {
