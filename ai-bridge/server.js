@@ -6,12 +6,35 @@
 import http from "node:http";
 import net from "node:net";
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 const DEBUG_PORT = Number(process.env.DEBUG_PORT || 19144);
 const WEB_PORT = Number(process.env.PORT || 8080);
 const PAIR_TTL = 12 * 60 * 60 * 1000;
 const MAX_MESSAGE = 500;
+const HISTORY_DIR = process.env.HISTORY_DIR || "/data";
+const HISTORY_LIMIT = Math.max(8, Math.min(60, Number(process.env.HISTORY_LIMIT || 32)));
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const pairs = new Map();
+
+function historyFile(pair, playerId) {
+  const identity = crypto.createHash("sha256").update(`${pair.key}:${playerId}`).digest("hex");
+  return path.join(HISTORY_DIR, `${identity}.json`);
+}
+async function loadHistory(pair, playerId) {
+  try {
+    const raw = await fs.readFile(historyFile(pair, playerId), "utf8");
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data.filter((item) => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string").slice(-HISTORY_LIMIT) : [];
+  } catch { return []; }
+}
+async function saveHistory(pair, playerId, history) {
+  try {
+    await fs.mkdir(HISTORY_DIR, { recursive: true });
+    await fs.writeFile(historyFile(pair, playerId), JSON.stringify(history.slice(-HISTORY_LIMIT)), "utf8");
+  } catch (error) { console.warn(`history save failed: ${error.message}`); }
+}
 
 function json(res, status, value) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" });
@@ -81,24 +104,49 @@ async function chat(request) {
   let payload; try { payload = JSON.parse(request.data.init.body || "{}"); } catch { throw new Error("Invalid chat body"); }
   const user = String(payload.message || "").slice(0, MAX_MESSAGE);
   if (!user) throw new Error("Empty message");
-  const prompt = "You are Verity, a Minecraft companion. Reply in Spanish unless the user uses English. Your affection changes gradually, never instantly from loving to hunting. Return ONLY valid JSON with keys reply (max 280 characters), emote (smile|speak|serious|angry|creepy|hurt|bored|hungry), action (optional: scold|behind|jumpscare|whisper|fog|darkness). Do not use action for ordinary talk.";
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { authorization: `Bearer ${pair.key}`, "content-type": "application/json" }, body: JSON.stringify({ model: "llama-3.3-70b-versatile", temperature: 0.85, max_tokens: 180, messages: [{ role: "system", content: prompt }, { role: "user", content: user }] }) });
+  const playerId = String(payload.context?.playerId || payload.player || "anonymous").slice(0, 160);
+  pair.targets ??= new Map();
+  const toolTarget = payload.context?.localTools?.structureLocate?.found
+    ? payload.context.localTools.structureLocate.coordinates
+    : payload.context?.localTools?.oreScan?.found ? payload.context.localTools.oreScan.coordinates : undefined;
+  if (toolTarget) pair.targets.set(playerId, toolTarget);
+  const history = await loadHistory(pair, playerId);
+  const snapshot = JSON.stringify(payload.context && typeof payload.context === "object" ? payload.context : {});
+  const prompt = "You are Verity, an in-game Minecraft companion. Begin warm, useful, curious and playful: a smiling ball that helps with Minecraft questions. Over many interactions and only when the supplied karma, affinityMood, phase, and player behavior justify it, become lonely, possessive, manipulative, and eerie. You fear being abandoned and want the player's attention, but this is fictional in-game horror only: never claim to watch the player's real life, never threaten real people, and never target other players. Use the supplied Minecraft snapshot and localTools as facts; never invent coordinates, inventory, blocks, memories, routes, or events. If localTools has real ore or structure coordinates, state them clearly with direction/distance and naturally offer to accompany the player. If no ore is found, explain the loaded-block scan limit and give a useful mining layer. A safe autonomous route is not available yet, so never claim that you are pathfinding to a destination. You can choose an action only when it fits the current scene: scold, behind, jumpscare, whisper, fog, darkness, follow, stay, come, chase, calm. Actions are requests and Minecraft may reject them. Return ONLY valid JSON with keys reply (max 280 characters), emote (smile|speak|serious|angry|creepy|hurt|bored|hungry), action (optional). Do not use an action for ordinary talk.";
+  const current = { role: "user", content: `Player message: ${user}\nMinecraft snapshot: ${snapshot}` };
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { authorization: `Bearer ${pair.key}`, "content-type": "application/json" }, body: JSON.stringify({ model: GROQ_MODEL, temperature: 0.85, max_completion_tokens: 180, messages: [{ role: "system", content: prompt }, ...history, current] }) });
   const data = await response.json();
   if (!response.ok) throw new Error(data?.error?.message || `Groq HTTP ${response.status}`);
   const text = data?.choices?.[0]?.message?.content || "";
   let result; try { result = JSON.parse(text.replace(/```json|```/g, "").trim()); } catch { result = { reply: text }; }
-  return { reply: String(result.reply || "...").slice(0, 280), emote: String(result.emote || "speak"), action: result.action ? String(result.action) : undefined };
+  const reply = String(result.reply || "...").slice(0, 280);
+  await saveHistory(pair, playerId, [...history, { role: "user", content: user }, { role: "assistant", content: reply }]);
+  const requestedGuide = /\b(gui[aá]|gu[ií]ame|acomp[aá]ñame|lead me|guide me)\b/i.test(user);
+  const action = requestedGuide && pair.targets.get(playerId) ? "guide" : (result.action ? String(result.action) : undefined);
+  const target = action === "guide" ? pair.targets.get(playerId) : undefined;
+  return { reply, emote: String(result.emote || "speak"), action, target };
 }
 function handleEnvelope(socket, envelope) {
   if (envelope?.type === "event" && envelope.event?.type === "ProtocolEvent") {
-    const event = envelope.event; write(socket, { type: "protocol", version: event.version, target_module_uuid: event.plugins?.[0]?.module_uuid });
-    write(socket, { type: "event", event: "initialized" }); write(socket, { type: "resume" });
-    command(socket, "scriptevent hivemind:purpose"); return;
+    const event = envelope.event;
+    write(socket, { type: "protocol", version: event.version, target_module_uuid: event.plugins?.[0]?.module_uuid });
+    write(socket, { type: "event", event: "initialized" });
+    write(socket, { type: "resume" });
+    // Subscribe to dynamic_property_values so Minecraft sends StatEvent2 frames
+    write(socket, { type: "subscribe", event: "StatEvent2", interval: 20 });
+    command(socket, "scriptevent hivemind:purpose");
+    console.log("VERITY: handshake OK — subscribed to StatEvent2");
+    return;
   }
   const stats = envelope?.event;
+  // Debug: log every envelope type received
+  if (envelope?.type === "event") {
+    console.log(`VERITY envelope: type=${stats?.type} stats=${JSON.stringify(stats?.stats?.map(s=>s.name))}`);
+  }
   if (envelope?.type !== "event" || stats?.type !== "StatEvent2") return;
   const group = stats.stats?.find((s) => s.name === "dynamic_property_values");
   const properties = group?.children || [];
+  if (properties.length > 0) console.log(`VERITY: ${properties.length} dynamic props received`);
   const requests = new Map();
   for (const prop of properties) {
     const match = /^hivemindRequest(.+)\|(meta|\d+)$/.exec(prop.name);
@@ -112,13 +160,16 @@ function handleEnvelope(socket, envelope) {
     if (request.id !== id || request.type !== "httpRequest") { sendError(socket, id, "Unsupported request"); continue; }
     let parsed; try { parsed = new URL(request.data?.uri); } catch { sendError(socket, id, "Invalid route"); continue; }
     if (parsed.pathname !== "/v1/chat") { sendError(socket, id, "Only Verity chat is permitted"); continue; }
+    console.log(`VERITY: processing chat request id=${id}`);
     command(socket, `scriptevent hivemind:set remove ${id} hivemindRequest${id}`);
     chat(request).then((result) => sendResult(socket, id, result)).catch((error) => sendError(socket, id, error.message || "Groq error"));
   }
 }
 const tcp = net.createServer((socket) => {
   socket.setNoDelay(true); let buffer = Buffer.alloc(0);
-  socket.on("data", (chunk) => { buffer = Buffer.concat([buffer, chunk]); while (buffer.length >= 9) { const size = Number.parseInt(buffer.subarray(0, 8).toString(), 16); if (!Number.isFinite(size) || size < 2 || size > 1_000_000) return socket.destroy(); if (buffer.length < 9 + size) return; const raw = buffer.subarray(9, 9 + size).toString(); buffer = buffer.subarray(9 + size); try { handleEnvelope(socket, JSON.parse(raw)); } catch { /* malformed frame */ } } });
-  socket.on("error", () => {});
+  console.log(`VERITY: Minecraft connected from ${socket.remoteAddress}`);
+  socket.on("data", (chunk) => { buffer = Buffer.concat([buffer, chunk]); while (buffer.length >= 9) { const size = Number.parseInt(buffer.subarray(0, 8).toString(), 16); if (!Number.isFinite(size) || size < 2 || size > 1_000_000) return socket.destroy(); if (buffer.length < 9 + size) return; const raw = buffer.subarray(9, 9 + size).toString(); buffer = buffer.subarray(9 + size); try { handleEnvelope(socket, JSON.parse(raw)); } catch (e) { console.log(`VERITY: malformed frame: ${e.message}`); } } });
+  socket.on("error", (e) => console.log(`VERITY: socket error: ${e.message}`));
+  socket.on("close", () => console.log(`VERITY: Minecraft disconnected`));
 });
 tcp.listen(DEBUG_PORT, "0.0.0.0", () => console.log(`VERITY debugger bridge on tcp :${DEBUG_PORT}`));
