@@ -275,7 +275,7 @@ function throwVerityball(ball, player) {
 	if (!ball?.isValid || inFlight.has(ball.id)) return;
 	inFlight.add(ball.id);
 	noteVerityMistreatment(player.id, "throw");
-	bumpAnger(7);
+	bumpAnger(2);
 
 	let dir;
 	try { dir = player.getViewDirection(); } catch { dir = { x: 0, y: 0.2, z: 1 }; }
@@ -314,7 +314,7 @@ function throwVerityball(ball, player) {
 		if (hereBlk && HAZARD_BLOCKS.has(hereBlk.typeId)) {
 			try { ball.teleport({ x: nx, y: ny, z: nz }); } catch { /* ignore */ }
 			system.clearRun(runId); inFlight.delete(ball.id);
-			bumpAnger(25);
+			bumpAnger(20);
 			noteVerityMistreatment(player.id, "lava");
 			return;
 		}
@@ -367,7 +367,7 @@ function throwVerityball(ball, player) {
 function onThrowLand(ball, player) {
 	if (!ball?.isValid || !player?.isValid) return;
 
-	bumpAnger(6);
+	bumpAnger(3);
 	const hostility = getHostility();
 	const mood = getMood(player.id);
 	const phase = getVerityPhase();
@@ -777,8 +777,8 @@ export function applyRemoteVerityResponse(response, player) {
 }
 
 export function initVerityAIBridge() {
-	const se = system.afterEvents.scriptEventReceived;
-	if (!se) { console.warn("VERITY ONLINE: scriptEventReceived no disponible"); return; }
+	const se = system.afterEvents.scriptEventReceive;
+	if (!se) { console.warn("VERITY ONLINE: scriptEventReceive no disponible"); return; }
 	se.subscribe((ev) => {
 		const id = ev.id;
 		const msg = ev.message || "";
@@ -793,7 +793,7 @@ export function initVerityAIBridge() {
 		} catch (err) {
 			console.warn(`VERITY ONLINE bridge ${id}: ${err}`);
 		}
-	}, { namespaces: ["verity"] });
+	});
 	console.warn("VERITY ONLINE: puente de IA (scriptevent verity:*) activo");
 }
 
@@ -812,7 +812,7 @@ export function initVerityAIBridge() {
  */
 function rescueFromVoid(ball, dim, owner) {
 	if (!ball?.isValid) return;
-	bumpAnger(20);
+	bumpAnger(15);
 	const player = nearestPlayerTo(ball.location, dim);
 	if (owner?.isValid) noteVerityMistreatment(owner.id, "void");
 	if (player?.isValid) {
