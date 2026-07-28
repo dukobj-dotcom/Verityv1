@@ -1,0 +1,10 @@
+action.interact.pickup=Recoger
+item.pntmc:verity_inventory_1.name=Verity
+item.pntmc:verity_inventory_2.name=Verity
+item.pntmc:verity_inventory_3.name=Verity
+entity.pntmc:cardboard_box.name=Caja de Verity
+entity.pntmc:verity.name=MattVerity
+entity.pntmc:verity_chase.name=MattVerity
+entity.pntmc:verityball.name=MattVerity
+entity.pntmc:verityball_fall.name=MattVerity
+entity.pntmc:verity_window.name=MattVerity
