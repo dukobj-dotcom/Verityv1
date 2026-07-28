@@ -1,0 +1,16 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:entity": {
+    "description": { "identifier": "pntmc:karma_anchor", "is_spawnable": false, "is_summonable": false, "is_experimental": false },
+    "components": {
+      "minecraft:type_family": { "family": ["pntmc_karma"] },
+      "minecraft:health": { "value": 100, "max": 100 },
+      "minecraft:boss": { "name": "§0§0§0§0§r§eKARMA ONLINE", "hud_range": 1000000, "should_darken_sky": false },
+      "minecraft:damage_sensor": { "triggers": [{ "deals_damage": false }] },
+      "minecraft:physics": { "has_gravity": false, "has_collision": false },
+      "minecraft:collision_box": { "width": 0.01, "height": 0.01 },
+      "minecraft:pushable": { "is_pushable": false, "is_pushable_by_piston": false },
+      "minecraft:persistent": {}
+    }
+  }
+}
