@@ -64,7 +64,7 @@ function cleanPairs() {
 }
 setInterval(cleanPairs, 60_000).unref();
 
-const page = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VERITY ONLINE · Groq</title><style>body{margin:0;background:#101114;color:#eee;font:16px system-ui;display:grid;place-items:center;min-height:100vh}.card{width:min(430px,90vw);background:#1a1c20;border:1px solid #30333a;border-radius:18px;padding:26px;box-sizing:border-box}h1{margin:0 0 8px}p{color:#aeb3bc;line-height:1.45}input,button{box-sizing:border-box;width:100%;border-radius:10px;padding:12px;margin-top:10px;font:inherit}input{border:1px solid #444;background:#101114;color:white}button{border:0;background:#d9dce1;color:#121316;font-weight:700;cursor:pointer}.code{font:700 28px ui-monospace;text-align:center;letter-spacing:3px;color:#fff;margin:18px 0}.hidden{display:none}</style><main class="card"><h1>VERITY ONLINE</h1><p id="intro">Pega tu clave personal de Groq. Se conserva solo en memoria por 12 horas y nunca se mete al addon.</p><input id="key" type="password" placeholder="gsk_..." autocomplete="off"><button id="go">Vincular Groq</button><section id="done" class="hidden"><p>En el chat del mundo escribe:</p><div class="code" id="code"></div><p><b>!verity link CODIGO</b></p><p>Después conecta el mundo al puente con el comando que muestre la guía del addon.</p></section></main><script>go.onclick=async()=>{go.disabled=true;try{let r=await fetch('/v1/link',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:key.value})});let j=await r.json();if(!r.ok)throw Error(j.error);key.value='';code.textContent=j.code;done.classList.remove('hidden');intro.textContent='Clave vinculada correctamente.'}catch(e){alert(e.message)}finally{go.disabled=false}};</script></html>`;
+const page = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VERITY ONLINE Â· Groq</title><style>body{margin:0;background:#101114;color:#eee;font:16px system-ui;display:grid;place-items:center;min-height:100vh}.card{width:min(430px,90vw);background:#1a1c20;border:1px solid #30333a;border-radius:18px;padding:26px;box-sizing:border-box}h1{margin:0 0 8px}p{color:#aeb3bc;line-height:1.45}input,button{box-sizing:border-box;width:100%;border-radius:10px;padding:12px;margin-top:10px;font:inherit}input{border:1px solid #444;background:#101114;color:white}button{border:0;background:#d9dce1;color:#121316;font-weight:700;cursor:pointer}.code{font:700 28px ui-monospace;text-align:center;letter-spacing:3px;color:#fff;margin:18px 0}.hidden{display:none}</style><main class="card"><h1>VERITY ONLINE</h1><p id="intro">Pega tu clave personal de Groq. Se conserva solo en memoria por 12 horas y nunca se mete al addon.</p><input id="key" type="password" placeholder="gsk_..." autocomplete="off"><button id="go">Vincular Groq</button><section id="done" class="hidden"><p>En el chat del mundo escribe:</p><div class="code" id="code"></div><p><b>!verity link CODIGO</b></p><p>DespuÃ©s conecta el mundo al puente con el comando que muestre la guÃ­a del addon.</p></section></main><script>go.onclick=async()=>{go.disabled=true;try{let r=await fetch('/v1/link',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:key.value})});let j=await r.json();if(!r.ok)throw Error(j.error);key.value='';code.textContent=j.code;done.classList.remove('hidden');intro.textContent='Clave vinculada correctamente.'}catch(e){alert(e.message)}finally{go.disabled=false}};</script></html>`;
 
 const web = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" }); return res.end(); }
@@ -87,7 +87,10 @@ function write(socket, message) {
   const data = Buffer.from(JSON.stringify(message));
   socket.write(Buffer.concat([Buffer.from(`${(data.length + 1).toString(16).padStart(8, "0")}\n`), data, Buffer.from("\n")]));
 }
-function command(socket, command) { write(socket, { type: "minecraftCommand", command, dimension_type: "overworld" }); }
+function command(socket, cmd) {
+  const formatted = String(cmd || "").startsWith("/") ? String(cmd) : "/" + String(cmd);
+  write(socket, { type: "minecraftCommand", command: formatted, dimension_type: "overworld" });
+}
 function quoteCommand(value) { return String(value).replace(/[\r\n]/g, " ").replace(/\\/g, "\\\\").replace(/"/g, "\\\""); }
 async function sendResult(socket, id, value) {
   const raw = JSON.stringify(value);
@@ -132,7 +135,7 @@ async function chat(request) {
   let result; try { result = JSON.parse(text.replace(/```json|```/g, "").trim()); } catch { result = { reply: text }; }
   const reply = String(result.reply || "...").slice(0, 280);
   await saveHistory(pair, playerId, [...history, { role: "user", content: user }, { role: "assistant", content: reply }]);
-  const requestedGuide = /\b(gui[aá]|gu[ií]ame|acomp[aá]ñame|lead me|guide me)\b/i.test(user);
+  const requestedGuide = /\b(gui[aÃ¡]|gu[iÃ­]ame|acomp[aÃ¡]Ã±ame|lead me|guide me)\b/i.test(user);
   const action = requestedGuide && pair.targets.get(playerId) ? "guide" : (result.action ? String(result.action) : undefined);
   const target = action === "guide" ? pair.targets.get(playerId) : undefined;
   return { reply, emote: String(result.emote || "speak"), action, target };
@@ -227,7 +230,7 @@ function handleEnvelope(socket, envelope) {
     // Subscribe to dynamic_property_values so Minecraft sends StatEvent2 frames
     write(socket, { type: "subscribe", event: "StatEvent2", interval: STAT_EVENT_INTERVAL });
     command(socket, "scriptevent hivemind:purpose");
-    console.log(`VERITY: handshake OK — subscribed to StatEvent2 @ ${STAT_EVENT_INTERVAL} ticks`);
+    console.log(`VERITY: handshake OK â€” subscribed to StatEvent2 @ ${STAT_EVENT_INTERVAL} ticks`);
     return;
   }
   const stats = envelope?.event;
