@@ -41,7 +41,7 @@ import { initVerityEscalation } from "./verity_escalation.js";
 import { initVerityAmbience } from "./verity_ambience.js";
 import { initVerityGifts } from "./verity_gifts.js";
 import { initVerityPersonalQuestions } from "./verity_personal_questions.js";
-import { initVerityKarmaBoss } from "./verity_karma_boss.js";
+import { initVerityKarmaHud } from "./verity_karma_hud.js";
 import { initVerityHivemind } from "./verity_hivemind.js";
 import { initVerityGuide } from "./verity_guide.js";
 import { askRemoteVerity, clearVerityLink, configureBridge, hasVerityLink, setVerityLink } from "./verity_remote_ai.js";
@@ -768,15 +768,6 @@ if (entityTrigger) {
 	});
 }
 
-world.afterEvents.entityHitEntity.subscribe((ev) => {
-	if (!(ev.damagingEntity instanceof Player)) return;
-	if (ev.hitEntity.typeId !== VERITYBALL_ID) return;
-	if (tryFeedVerity(ev.hitEntity, ev.damagingEntity)) return;
-	noteVerityMistreatment(ev.damagingEntity.id, "hit");
-	changeVerityKarma(9);
-	tryVerityballPickup(ev.hitEntity, ev.damagingEntity, undefined);
-});
-
 function scanExistingBoxes() {
 	for (const player of world.getPlayers()) {
 		try {
@@ -808,7 +799,7 @@ system.run(() => {
 	initVerityAmbience();
 	initVerityGifts();
 	initVerityPersonalQuestions();
-	initVerityKarmaBoss();
+	initVerityKarmaHud();
 	initVerityHivemind();
 	initVerityGuide();
 });
@@ -925,10 +916,12 @@ if (chatSend) {
 
 		system.run(async () => {
 			const mensajeTraducido = traducirEspanol(message);
-			if (isGroqConnected()) return;
 			if (hasVerityLink(sender)) {
 				try { if (await askRemoteVerity(sender, mensajeTraducido)) return; }
-				catch (err) { console.warn(`verity remote chat: ${err}`); }
+				catch (err) {
+					console.warn(`verity remote chat: ${err}`);
+					try { sender.sendMessage("§c[Verity] El puente no respondió. Revisa el Content Log y vuelve a conectar el Script Debugger."); } catch { /* ignore */ }
+				}
 			}
 			if (tryHeyVerityWake(sender, mensajeTraducido)) return;
 			handleVerityChat(sender, mensajeTraducido).catch((err) => {
