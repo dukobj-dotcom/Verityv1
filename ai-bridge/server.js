@@ -185,23 +185,30 @@ function handleEnvelope(socket, envelope) {
   for (const prop of properties) {
     const match = /^hivemindRequest(.+)\|(meta|\d+)$/.exec(prop.name);
     if (!match) continue;
-    const item = requests.get(match[1]) || {}; item[match[2]] = latestValue(prop); requests.set(match[1], item);
+    console.log(`VERITY RAW PROP: name=${prop.name} propObj=${JSON.stringify(prop)}`);
+    const rawVal = latestValue(prop);
+    const item = requests.get(match[1]) || {};
+    item[match[2]] = rawVal !== undefined && rawVal !== null ? String(rawVal) : undefined;
+    requests.set(match[1], item);
   }
   for (const [id, pieces] of requests) {
     if (inflight.has(id)) continue;
-    const count = Number(pieces.meta); if (!Number.isInteger(count) || count < 1 || count > 20) continue;
+    const count = Number(pieces.meta);
+    if (!Number.isInteger(count) || count < 1 || count > 20) continue;
+    
+    // CRITICAL: Immediately send 'accepted' (-1) status so Minecraft knows the request was received
+    // and doesn't trigger the 45-second rejection timeout in verity_hivemind.js
+    command(socket, `scriptevent hivemind:respond ${id}|-1|accepted`);
+
     let raw = "";
     let complete = true;
     for (let i = 0; i < count; i++) {
-      if (typeof pieces[i] !== "string") { complete = false; break; }
+      if (typeof pieces[i] !== "string") {
+        complete = false; break;
+      }
       raw += pieces[i];
     }
-    // A property may be absent from this StatEvent2 window. Leave it in the
-    // world and wait for the next sample instead of abandoning the whole frame.
-    if (!complete) {
-      console.log(`VERITY: request id=${id} is incomplete; waiting for next StatEvent2 sample`);
-      continue;
-    }
+    if (!complete) continue;
     let request; try { request = JSON.parse(raw); } catch { sendError(socket, id, "Invalid request"); continue; }
     if (request.id !== id || request.type !== "httpRequest") { sendError(socket, id, "Unsupported request"); continue; }
     let parsed; try { parsed = new URL(request.data?.uri); } catch { sendError(socket, id, "Invalid route"); continue; }
