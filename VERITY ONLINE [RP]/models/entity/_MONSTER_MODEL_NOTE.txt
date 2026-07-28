@@ -1,0 +1,13 @@
+NOTA — pntmc_verity_monster.geo.json
+
+El modelo de geometría del monstruo (pntmc_verity_monster.geo.json, ~3.4 MB)
+NO está versionado en este repositorio porque supera el límite de 4 MB por
+archivo de la API usada para subir.
+
+Ese archivo SÍ está incluido (completo y funcional) dentro del paquete de
+descarga VERITY_ONLINE.mcaddon. Si editas el addon desde este repo, cópialo
+desde el .mcaddon a:
+    VERITY ONLINE [RP]/models/entity/pntmc_verity_monster.geo.json
+
+Descarga del .mcaddon:
+https://pub.hyperagent.com/api/published/pbf01KY8XN3WX_T2ZCGZ4917PAZJN3/VERITY_ONLINE.mcaddon
