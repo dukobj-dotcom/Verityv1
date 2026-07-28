@@ -1,0 +1,18 @@
+{
+  "format_version": 2,
+  "metadata": {
+    "authors": ["MATTEDUCK"],
+    "license": "All Rights Reserved",
+    "url": "https://github.com/dukobj-dotcom/Verity"
+  },
+  "header": {
+    "name": "VERITY ONLINE [RP]",
+    "description": "VERITY ONLINE: una presencia que recuerda, observa y cambia contigo. Creado y expandido por MATTEDUCK. Inspirado por ThatMob's Verity.",
+    "uuid": "8b22373d-7d15-4333-80f3-0d4cdb2bf302",
+    "min_engine_version": [1, 26, 0],
+    "version": [3, 1, 3]
+  },
+  "modules": [
+    { "type": "resources", "uuid": "93cebce8-173d-48aa-a72b-5dc7a00f30e4", "version": [3, 1, 3] }
+  ]
+}
