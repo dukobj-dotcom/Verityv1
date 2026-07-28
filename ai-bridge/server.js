@@ -16,6 +16,10 @@ const MAX_MESSAGE = 500;
 const HISTORY_DIR = process.env.HISTORY_DIR || "/data";
 const HISTORY_LIMIT = Math.max(8, Math.min(60, Number(process.env.HISTORY_LIMIT || 32)));
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+// StatEvent2 sample rate in ticks. 10 = 0.5 s. Lower = less latency.
+const STAT_EVENT_INTERVAL = Number(process.env.STAT_EVENT_INTERVAL || 10);
+// Ask the addon to rewrite the properties after this many frames with gaps.
+const RESEND_AFTER_FRAMES = 4;
 const pairs = new Map();
 // Request ids already picked up this connection, so overlapping StatEvent2
 // samples (the removal takes a few ticks to apply) don't double-fire Groq.
@@ -60,7 +64,7 @@ function cleanPairs() {
 }
 setInterval(cleanPairs, 60_000).unref();
 
-const page = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VERITY ONLINE Â· Groq</title><style>body{margin:0;background:#101114;color:#eee;font:16px system-ui;display:grid;place-items:center;min-height:100vh}.card{width:min(430px,90vw);background:#1a1c20;border:1px solid #30333a;border-radius:18px;padding:26px;box-sizing:border-box}h1{margin:0 0 8px}p{color:#aeb3bc;line-height:1.45}input,button{box-sizing:border-box;width:100%;border-radius:10px;padding:12px;margin-top:10px;font:inherit}input{border:1px solid #444;background:#101114;color:white}button{border:0;background:#d9dce1;color:#121316;font-weight:700;cursor:pointer}.code{font:700 28px ui-monospace;text-align:center;letter-spacing:3px;color:#fff;margin:18px 0}.hidden{display:none}</style><main class="card"><h1>VERITY ONLINE</h1><p id="intro">Pega tu clave personal de Groq. Se conserva solo en memoria por 12 horas y nunca se mete al addon.</p><input id="key" type="password" placeholder="gsk_..." autocomplete="off"><button id="go">Vincular Groq</button><section id="done" class="hidden"><p>En el chat del mundo escribe:</p><div class="code" id="code"></div><p><b>!verity link CODIGO</b></p><p>DespuÃ©s conecta el mundo al puente con el comando que muestre la guÃ­a del addon.</p></section></main><script>go.onclick=async()=>{go.disabled=true;try{let r=await fetch('/v1/link',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:key.value})});let j=await r.json();if(!r.ok)throw Error(j.error);key.value='';code.textContent=j.code;done.classList.remove('hidden');intro.textContent='Clave vinculada correctamente.'}catch(e){alert(e.message)}finally{go.disabled=false}};</script></html>`;
+const page = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VERITY ONLINE · Groq</title><style>body{margin:0;background:#101114;color:#eee;font:16px system-ui;display:grid;place-items:center;min-height:100vh}.card{width:min(430px,90vw);background:#1a1c20;border:1px solid #30333a;border-radius:18px;padding:26px;box-sizing:border-box}h1{margin:0 0 8px}p{color:#aeb3bc;line-height:1.45}input,button{box-sizing:border-box;width:100%;border-radius:10px;padding:12px;margin-top:10px;font:inherit}input{border:1px solid #444;background:#101114;color:white}button{border:0;background:#d9dce1;color:#121316;font-weight:700;cursor:pointer}.code{font:700 28px ui-monospace;text-align:center;letter-spacing:3px;color:#fff;margin:18px 0}.hidden{display:none}</style><main class="card"><h1>VERITY ONLINE</h1><p id="intro">Pega tu clave personal de Groq. Se conserva solo en memoria por 12 horas y nunca se mete al addon.</p><input id="key" type="password" placeholder="gsk_..." autocomplete="off"><button id="go">Vincular Groq</button><section id="done" class="hidden"><p>En el chat del mundo escribe:</p><div class="code" id="code"></div><p><b>!verity link CODIGO</b></p><p>Después conecta el mundo al puente con el comando que muestre la guía del addon.</p></section></main><script>go.onclick=async()=>{go.disabled=true;try{let r=await fetch('/v1/link',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:key.value})});let j=await r.json();if(!r.ok)throw Error(j.error);key.value='';code.textContent=j.code;done.classList.remove('hidden');intro.textContent='Clave vinculada correctamente.'}catch(e){alert(e.message)}finally{go.disabled=false}};</script></html>`;
 
 const web = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" }); return res.end(); }
@@ -86,7 +90,6 @@ function write(socket, message) {
 function command(socket, command) { write(socket, { type: "minecraftCommand", command, dimension_type: "overworld" }); }
 function quoteCommand(value) { return String(value).replace(/[\r\n]/g, " ").replace(/\\/g, "\\\\").replace(/"/g, "\\\""); }
 async function sendResult(socket, id, value) {
-  command(socket, `scriptevent hivemind:respond ${id}|-1|accepted`);
   const raw = JSON.stringify(value);
   const chunkSize = 1700;
   for (let index = 0; index < raw.length; index += chunkSize) {
@@ -129,32 +132,90 @@ async function chat(request) {
   let result; try { result = JSON.parse(text.replace(/```json|```/g, "").trim()); } catch { result = { reply: text }; }
   const reply = String(result.reply || "...").slice(0, 280);
   await saveHistory(pair, playerId, [...history, { role: "user", content: user }, { role: "assistant", content: reply }]);
-  const requestedGuide = /\b(gui[aÃ¡]|gu[iÃ­]ame|acomp[aÃ¡]Ã±ame|lead me|guide me)\b/i.test(user);
+  const requestedGuide = /\b(gui[aá]|gu[ií]ame|acomp[aá]ñame|lead me|guide me)\b/i.test(user);
   const action = requestedGuide && pair.targets.get(playerId) ? "guide" : (result.action ? String(result.action) : undefined);
   const target = action === "guide" ? pair.targets.get(playerId) : undefined;
   return { reply, emote: String(result.emote || "speak"), action, target };
 }
-// StatEvent2 reports each dynamic property as a time-series `values` array over
-// the subscription interval. Depending on the debugger build, a sample can be
-// returned directly or wrapped as { value: ... }. Normalize both forms before
-// selecting the newest usable value.
+
+// StatEvent2 reports each dynamic property in one of many shapes across Bedrock
+// debugger builds. Unwrap common wrappers until we reach a primitive value.
 function unwrapStatValue(value) {
   let current = value;
-  for (let depth = 0; depth < 4; depth++) {
+  for (let depth = 0; depth < 6; depth++) {
     if (typeof current === "string" || typeof current === "number" || typeof current === "boolean") return current;
-    if (!current || typeof current !== "object" || !("value" in current)) return undefined;
-    current = current.value;
+    if (current == null) return undefined;
+    if (typeof current !== "object") return undefined;
+    if ("value" in current) { current = current.value; continue; }
+    if ("latest" in current) { current = current.latest; continue; }
+    if ("current" in current) { current = current.current; continue; }
+    if ("data" in current) { current = current.data; continue; }
+    if ("payload" in current) { current = current.payload; continue; }
+    return undefined;
   }
   return undefined;
 }
 function latestValue(prop) {
   const vals = prop?.values;
-  if (!Array.isArray(vals) || vals.length === 0) return unwrapStatValue(prop?.value);
-  for (let i = vals.length - 1; i >= 0; i--) {
-    const value = unwrapStatValue(vals[i]);
-    if (value !== undefined && value !== null && value !== "") return value;
+  if (Array.isArray(vals) && vals.length > 0) {
+    for (let i = vals.length - 1; i >= 0; i--) {
+      const value = unwrapStatValue(vals[i]);
+      if (value !== undefined && value !== null && value !== "") return value;
+    }
   }
+  // Fallbacks for builds that report a single value directly.
+  const direct = unwrapStatValue(prop?.value);
+  if (direct !== undefined && direct !== null && direct !== "") return direct;
+  const latest = unwrapStatValue(prop?.latest);
+  if (latest !== undefined && latest !== null && latest !== "") return latest;
   return undefined;
+}
+
+function ensureSocketState(socket) {
+  if (!socket._reqBuf) socket._reqBuf = new Map();       // id -> { meta?: number, pieces: Map<index,string>, seenAt: number, framesWithGap: number }
+  if (!socket._acked) socket._acked = new Set();          // ids we've already sent -1|accepted for
+  return socket;
+}
+
+function tryProcessRequest(socket, id, entry) {
+  if (inflight.has(id)) return;
+  if (typeof entry.meta !== "number" || !Number.isFinite(entry.meta)) return;
+  if (entry.meta < 1 || entry.meta > 40) return;
+  // All pieces must be present.
+  for (let i = 0; i < entry.meta; i++) {
+    if (typeof entry.pieces.get(i) !== "string") return;
+  }
+  let raw = "";
+  for (let i = 0; i < entry.meta; i++) raw += entry.pieces.get(i);
+  let request;
+  try { request = JSON.parse(raw); } catch { sendError(socket, id, "Invalid request"); socket._reqBuf.delete(id); return; }
+  if (request.id !== id || request.type !== "httpRequest") { sendError(socket, id, "Unsupported request"); socket._reqBuf.delete(id); return; }
+  let parsed;
+  try { parsed = new URL(request.data?.uri); } catch { sendError(socket, id, "Invalid route"); socket._reqBuf.delete(id); return; }
+  if (parsed.pathname !== "/v1/chat") { sendError(socket, id, "Only Verity chat is permitted"); socket._reqBuf.delete(id); return; }
+  console.log(`VERITY: processing chat request id=${id} route=${parsed.pathname}`);
+  inflight.add(id);
+  socket._reqBuf.delete(id);
+  command(socket, `scriptevent hivemind:set remove ${id} hivemindRequest${id}`);
+  chat(request)
+    .then((result) => sendResult(socket, id, result))
+    .catch((error) => {
+      console.warn(`VERITY: chat failed id=${id}: ${error.message || error}`);
+      sendError(socket, id, error.message || "Groq error");
+    })
+    .finally(() => { setTimeout(() => inflight.delete(id), 60_000); });
+}
+
+function requestResendIfNeeded(socket, id, entry) {
+  if (typeof entry.meta !== "number") return;
+  let gaps = 0;
+  for (let i = 0; i < entry.meta; i++) if (typeof entry.pieces.get(i) !== "string") gaps++;
+  if (gaps === 0) return;
+  entry.framesWithGap = (entry.framesWithGap || 0) + 1;
+  if (entry.framesWithGap === RESEND_AFTER_FRAMES) {
+    console.log(`VERITY: gaps persist for id=${id} (${gaps}/${entry.meta} missing), asking addon to resend`);
+    command(socket, `scriptevent hivemind:resend ${id}`);
+  }
 }
 
 function handleEnvelope(socket, envelope) {
@@ -164,71 +225,85 @@ function handleEnvelope(socket, envelope) {
     write(socket, { type: "event", event: "initialized" });
     write(socket, { type: "resume" });
     // Subscribe to dynamic_property_values so Minecraft sends StatEvent2 frames
-    write(socket, { type: "subscribe", event: "StatEvent2", interval: 20 });
+    write(socket, { type: "subscribe", event: "StatEvent2", interval: STAT_EVENT_INTERVAL });
     command(socket, "scriptevent hivemind:purpose");
-    console.log("VERITY: handshake OK â€” subscribed to StatEvent2");
+    console.log(`VERITY: handshake OK — subscribed to StatEvent2 @ ${STAT_EVENT_INTERVAL} ticks`);
     return;
   }
   const stats = envelope?.event;
-  // Debug: log every envelope type received
-  if (envelope?.type === "event") {
-    console.log(`VERITY envelope: type=${stats?.type} stats=${JSON.stringify(stats?.stats?.map(s=>s.name))}`);
-  }
   if (envelope?.type !== "event" || stats?.type !== "StatEvent2") return;
   const group = stats.stats?.find((s) => s.name === "dynamic_property_values");
   const properties = group?.children || [];
-  if (properties.length > 0) {
-    // Diagnostic: dump the REAL property names so we can confirm hivemindRequest ever appears.
-    console.log(`VERITY: ${properties.length} dynamic props received -> ${JSON.stringify(properties.map((p) => p.name))}`);
+  ensureSocketState(socket);
+
+  if (properties.length > 0 && !socket._loggedFirstFrame) {
+    // One-time diagnostic dump so we can confirm the actual value shape in
+    // this Bedrock build.
+    socket._loggedFirstFrame = true;
+    try {
+      const sample = JSON.stringify(properties.slice(0, 6)).slice(0, 3000);
+      console.log(`VERITY DIAG first-frame properties sample: ${sample}`);
+    } catch { /* ignore */ }
   }
-  const requests = new Map();
+
+  const touchedIds = new Set();
   for (const prop of properties) {
     const match = /^hivemindRequest(.+)\|(meta|\d+)$/.exec(prop.name);
     if (!match) continue;
-    console.log(`VERITY RAW PROP: name=${prop.name} propObj=${JSON.stringify(prop)}`);
+    const id = match[1];
+    const key = match[2];
     const rawVal = latestValue(prop);
-    const item = requests.get(match[1]) || {};
-    item[match[2]] = rawVal !== undefined && rawVal !== null ? String(rawVal) : undefined;
-    requests.set(match[1], item);
-  }
-  for (const [id, pieces] of requests) {
-    if (inflight.has(id)) continue;
-    const count = Number(pieces.meta);
-    if (!Number.isInteger(count) || count < 1 || count > 20) continue;
-    
-    // CRITICAL: Immediately send 'accepted' (-1) status so Minecraft knows the request was received
-    // and doesn't trigger the 45-second rejection timeout in verity_hivemind.js
-    command(socket, `scriptevent hivemind:respond ${id}|-1|accepted`);
+    if (rawVal === undefined || rawVal === null || rawVal === "") continue;
 
-    let raw = "";
-    let complete = true;
-    for (let i = 0; i < count; i++) {
-      if (typeof pieces[i] !== "string") {
-        complete = false; break;
-      }
-      raw += pieces[i];
+    // First time we ever see this id on this connection: send -1|accepted
+    // immediately so the addon knows the bridge received the request.
+    if (!socket._acked.has(id)) {
+      command(socket, `scriptevent hivemind:respond ${id}|-1|accepted`);
+      socket._acked.add(id);
     }
-    if (!complete) continue;
-    let request; try { request = JSON.parse(raw); } catch { sendError(socket, id, "Invalid request"); continue; }
-    if (request.id !== id || request.type !== "httpRequest") { sendError(socket, id, "Unsupported request"); continue; }
-    let parsed; try { parsed = new URL(request.data?.uri); } catch { sendError(socket, id, "Invalid route"); continue; }
-    if (parsed.pathname !== "/v1/chat") { sendError(socket, id, "Only Verity chat is permitted"); continue; }
-    console.log(`VERITY: processing chat request id=${id} route=${parsed.pathname}`);
-    inflight.add(id);
-    command(socket, `scriptevent hivemind:set remove ${id} hivemindRequest${id}`);
-    chat(request)
-      .then((result) => sendResult(socket, id, result))
-      .catch((error) => {
-        console.warn(`VERITY: chat failed id=${id}: ${error.message || error}`);
-        sendError(socket, id, error.message || "Groq error");
-      })
-      .finally(() => { setTimeout(() => inflight.delete(id), 60_000); });
+
+    let entry = socket._reqBuf.get(id);
+    if (!entry) { entry = { pieces: new Map(), seenAt: Date.now(), framesWithGap: 0 }; socket._reqBuf.set(id, entry); }
+    if (key === "meta") {
+      const n = Number(rawVal);
+      if (Number.isInteger(n) && n >= 1 && n <= 40) entry.meta = n;
+    } else {
+      const idx = Number(key);
+      if (Number.isInteger(idx) && idx >= 0) entry.pieces.set(idx, String(rawVal));
+    }
+    touchedIds.add(id);
+  }
+
+  // Try to process everything that might be complete now, and ask for resend on stale gaps.
+  for (const id of touchedIds) {
+    const entry = socket._reqBuf.get(id);
+    if (!entry) continue;
+    tryProcessRequest(socket, id, entry);
+  }
+  for (const [id, entry] of socket._reqBuf) {
+    if (inflight.has(id)) continue;
+    if (!touchedIds.has(id)) requestResendIfNeeded(socket, id, entry);
+    // Expire stale entries after 90 s so the map doesn't grow forever.
+    if (Date.now() - entry.seenAt > 90_000) socket._reqBuf.delete(id);
   }
 }
+
 const tcp = net.createServer((socket) => {
-  socket.setNoDelay(true); let buffer = Buffer.alloc(0);
+  socket.setNoDelay(true);
+  let buffer = Buffer.alloc(0);
   console.log(`VERITY: Minecraft connected from ${socket.remoteAddress}`);
-  socket.on("data", (chunk) => { buffer = Buffer.concat([buffer, chunk]); while (buffer.length >= 9) { const size = Number.parseInt(buffer.subarray(0, 8).toString(), 16); if (!Number.isFinite(size) || size < 2 || size > 1_000_000) return socket.destroy(); if (buffer.length < 9 + size) return; const raw = buffer.subarray(9, 9 + size).toString(); buffer = buffer.subarray(9 + size); try { handleEnvelope(socket, JSON.parse(raw)); } catch (e) { console.log(`VERITY: malformed frame: ${e.message}`); } } });
+  socket.on("data", (chunk) => {
+    buffer = Buffer.concat([buffer, chunk]);
+    while (buffer.length >= 9) {
+      const size = Number.parseInt(buffer.subarray(0, 8).toString(), 16);
+      if (!Number.isFinite(size) || size < 2 || size > 1_000_000) return socket.destroy();
+      if (buffer.length < 9 + size) return;
+      const raw = buffer.subarray(9, 9 + size).toString();
+      buffer = buffer.subarray(9 + size);
+      try { handleEnvelope(socket, JSON.parse(raw)); }
+      catch (e) { console.log(`VERITY: malformed frame: ${e.message}`); }
+    }
+  });
   socket.on("error", (e) => console.log(`VERITY: socket error: ${e.message}`));
   socket.on("close", () => console.log(`VERITY: Minecraft disconnected`));
 });
