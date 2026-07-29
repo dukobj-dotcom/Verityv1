@@ -43,7 +43,10 @@ function commandResponse(id, status, message, data) {
     }
     let decoded = responses.get(id) ?? data ?? "";
     responses.delete(id);
-    try { decoded = JSON.parse(decoded); } catch { /* bridge may return text */ }
+    try {
+        decoded = JSON.parse(decoded);
+        if (typeof decoded === "string") decoded = JSON.parse(decoded);
+    } catch { /* bridge may return text */ }
     resolver.resolve(decoded);
 }
 
