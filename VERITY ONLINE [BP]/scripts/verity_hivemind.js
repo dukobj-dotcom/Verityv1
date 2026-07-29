@@ -106,7 +106,7 @@ function init() {
             if (first < 0 || second < 0) return;
             const action = msg.slice(0, first);
             const requestId = msg.slice(first + 1, second);
-            const payload = msg.slice(second + 1);
+            let payload = msg.slice(second + 1);
             if (action === "add") responses.set(requestId, (responses.get(requestId) || "") + payload);
             if (action === "reset") responses.delete(requestId);
             if (action === "remove") {
